@@ -2,11 +2,10 @@ extern crate odbc;
 // Use this crate and set environmet variable RUST_LOG=odbc to see ODBC warnings
 extern crate env_logger;
 use odbc::*;
-use std::io;
 use odbc_safe::AutocommitOn;
+use std::io;
 
 fn main() {
-
     env_logger::init();
 
     match connect() {
@@ -16,7 +15,6 @@ fn main() {
 }
 
 fn connect() -> std::result::Result<(), DiagnosticRecord> {
-
     let mut env = create_environment_v3().map_err(|e| e.unwrap())?;
 
     for driver in env.drivers()? {
@@ -46,8 +44,49 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<()> 
         Data(mut stmt) => {
             let cols = stmt.num_result_cols()?;
             while let Some(mut cursor) = stmt.fetch()? {
+                println!("==  Row as Strings");
                 for i in 1..(cols + 1) {
                     match cursor.get_data::<&str>(i as u16)? {
+                        Some(val) => print!(" | {}", val),
+                        None => print!(" | NULL"),
+                    }
+                }
+                println!("");
+                println!("==  Row as f64");
+                for i in 1..(cols + 1) {
+                    match cursor.get_data::<f64>(i as u16)? {
+                        Some(val) => print!(" | {}", val),
+                        None => print!(" | NULL"),
+                    }
+                }
+                println!("");
+                println!("==  Row as f32");
+                for i in 1..(cols + 1) {
+                    match cursor.get_data::<f32>(i as u16)? {
+                        Some(val) => print!(" | {}", val),
+                        None => print!(" | NULL"),
+                    }
+                }
+                println!("");
+                println!("==  Row as i64");
+                for i in 1..(cols + 1) {
+                    match cursor.get_data::<i64>(i as u16)? {
+                        Some(val) => print!(" | {}", val),
+                        None => print!(" | NULL"),
+                    }
+                }
+                println!("");
+                println!("==  Row as i32");
+                for i in 1..(cols + 1) {
+                    match cursor.get_data::<i32>(i as u16)? {
+                        Some(val) => print!(" | {}", val),
+                        None => print!(" | NULL"),
+                    }
+                }
+                println!("");
+                println!("==  Row as bool");
+                for i in 1..(cols + 1) {
+                    match cursor.get_data::<bool>(i as u16)? {
                         Some(val) => print!(" | {}", val),
                         None => print!(" | NULL"),
                     }
