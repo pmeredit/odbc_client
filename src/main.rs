@@ -97,5 +97,20 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<()> 
         NoData(_) => println!("Query executed, no data returned"),
     }
 
+    let stmt = Statement::with_parent(conn)?;
+    let mut stmt = stmt.tables_str("tdvt", "", "%", "")?;
+    let cols = stmt.num_result_cols()?;
+    println!("TABLES");
+    while let Some(mut cursor) = stmt.fetch()? {
+        for i in 1..(cols + 1) {
+            match cursor.get_data::<&str>(i as u16)? {
+                Some(val) => print!(" | {}", val),
+                None => print!(" | NULL"),
+            }
+        }
+        println!("");
+    }
+    println!("");
+
     Ok(())
 }
