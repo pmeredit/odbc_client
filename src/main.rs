@@ -3,7 +3,6 @@ extern crate odbc;
 extern crate env_logger;
 use odbc::*;
 use odbc_safe::AutocommitOn;
-use std::io;
 use clap::Clap;
 
 #[derive(Clap)]
@@ -15,23 +14,16 @@ struct Opts {
 
 #[derive(Clap)]
 enum SubCommand {
-    #[clap(version = "0.0.1", autho = "Patrick Meredith <pmeredit@gmail.com>")]
-    ListDSN(ListDSN),
-    ListDrivers(ListDrivers),
-    ReadTables(ReadTables),
+    ListDSN,
+    ListDrivers,
+    ListTables(ListTables),
     RunQuery(RunQuery),
 }
 
 #[derive(Clap)]
-struct ListDSN {}
-
-#[derive(Clap)]
-struct ListDrivers {}
-
-#[derive(Clap)]
-struct ReadTables {
-    #[clap(short, long, default_value = "%")]
-    connection_string: String,
+struct ListTables {
+    #[clap(short, long)]
+    uri: String,
     #[clap(short, long, default_value = "%")]
     catalog_name: String,
     #[clap(short, long, default_value = "%")]
@@ -41,11 +33,9 @@ struct ReadTables {
 #[derive(Clap)]
 struct RunQuery {
     #[clap(short, long)]
-    connection_string: String,
+    uri: String,
     #[clap(short, long)]
-    catalog_name: String,
-    #[clap(short, long)]
-    table_name: String,
+    query: String,
 }
 
 fn main() {
@@ -62,24 +52,26 @@ fn main() {
 fn connect(opts: &Opts) -> std::result::Result<(), DiagnosticRecord> {
     let mut env = create_environment_v3().map_err(|e| e.unwrap())?;
 
-    match opts.subcommand {
-        ListDSN(_) => {
+    match &opts.subcmd {
+        SubCommand::ListDSN => {
             for ds in env.system_data_sources()? {
                 println!("{:?}", ds);
             }
+            Ok(())
         }
-        ListDrivers(_) => {
+        SubCommand::ListDrivers => {
             for driver in env.drivers()? {
                 println!("{:?}", driver);
             }
+            Ok(())
         }
-        ReadTables(r) => {
-            let conn = env.connect_with_connection_string(&r.connection_string)?;
-            execute_tables(&conn, r.query)?;
+        SubCommand::ListTables(r) => {
+            let conn = env.connect_with_connection_string(&r.uri)?;
+            execute_tables(&conn, &r.catalog_name, &r.table_name)
         }
-        RunQuery(r) => {
-            let conn = env.connect_with_connection_string(&r.connection_string)?;
-            execute_statement(&conn, r.catalog_name, r.table_name)?;
+        SubCommand::RunQuery(r) => {
+            let conn = env.connect_with_connection_string(&r.uri)?;
+            execute_statement(&conn, &r.query)
         }
     }
 }
@@ -153,4 +145,5 @@ fn execute_tables<'env>(conn: &Connection<'env, AutocommitOn>, catalog_name: &st
         println!("");
     }
     println!("");
+    Ok(())
 }
