@@ -4,43 +4,90 @@ extern crate env_logger;
 use odbc::*;
 use odbc_safe::AutocommitOn;
 use std::io;
+use clap::Clap;
+
+#[derive(Clap)]
+#[clap(version = "0.0.1", author = "Patrick Meredith <pmeredit@gmail.com>")]
+struct Opts {
+    #[clap(subcommand)]
+    subcmd: SubCommand,
+}
+
+#[derive(Clap)]
+enum SubCommand {
+    #[clap(version = "0.0.1", autho = "Patrick Meredith <pmeredit@gmail.com>")]
+    ListDSN(ListDSN),
+    ListDrivers(ListDrivers),
+    ReadTables(ReadTables),
+    RunQuery(RunQuery),
+}
+
+#[derive(Clap)]
+struct ListDSN {}
+
+#[derive(Clap)]
+struct ListDrivers {}
+
+#[derive(Clap)]
+struct ReadTables {
+    #[clap(short, long, default_value = "%")]
+    connection_string: String,
+    #[clap(short, long, default_value = "%")]
+    catalog_name: String,
+    #[clap(short, long, default_value = "%")]
+    table_name: String,
+}
+
+#[derive(Clap)]
+struct RunQuery {
+    #[clap(short, long)]
+    connection_string: String,
+    #[clap(short, long)]
+    catalog_name: String,
+    #[clap(short, long)]
+    table_name: String,
+}
 
 fn main() {
     env_logger::init();
 
-    match connect() {
+    let opts: Opts = Opts::parse();
+
+    match connect(&opts) {
         Ok(()) => println!("Success"),
         Err(diag) => println!("Error: {}", diag),
     }
 }
 
-fn connect() -> std::result::Result<(), DiagnosticRecord> {
+fn connect(opts: &Opts) -> std::result::Result<(), DiagnosticRecord> {
     let mut env = create_environment_v3().map_err(|e| e.unwrap())?;
 
-    for driver in env.drivers()? {
-        println!("{:?}", driver);
+    match opts.subcommand {
+        ListDSN(_) => {
+            for ds in env.system_data_sources()? {
+                println!("{:?}", ds);
+            }
+        }
+        ListDrivers(_) => {
+            for driver in env.drivers()? {
+                println!("{:?}", driver);
+            }
+        }
+        ReadTables(r) => {
+            let conn = env.connect_with_connection_string(&r.connection_string)?;
+            execute_tables(&conn, r.query)?;
+        }
+        RunQuery(r) => {
+            let conn = env.connect_with_connection_string(&r.connection_string)?;
+            execute_statement(&conn, r.catalog_name, r.table_name)?;
+        }
     }
-
-    for ds in env.system_data_sources()? {
-        println!("{:?}", ds);
-    }
-
-    let mut buffer = String::new();
-    println!("Please enter connection string: ");
-    io::stdin().read_line(&mut buffer).unwrap();
-
-    let conn = env.connect_with_connection_string(&buffer)?;
-    execute_statement(&conn)
 }
 
-fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<()> {
+fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -> Result<()> {
     let stmt = Statement::with_parent(conn)?;
 
-    let mut sql_text = String::new();
-    println!("Please enter SQL statement string: ");
-    io::stdin().read_line(&mut sql_text).unwrap();
-
-    match stmt.exec_direct(&sql_text)? {
+    match stmt.exec_direct(query)? {
         Data(mut stmt) => {
             let cols = stmt.num_result_cols()?;
             while let Some(mut cursor) = stmt.fetch()? {
@@ -68,14 +115,6 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<()> 
                     }
                 }
                 println!("");
-                println!("==  Row as i64");
-                for i in 1..(cols + 1) {
-                    match cursor.get_data::<i64>(i as u16)? {
-                        Some(val) => print!(" | {}", val),
-                        None => print!(" | NULL"),
-                    }
-                }
-                println!("");
                 println!("==  Row as i32");
                 for i in 1..(cols + 1) {
                     match cursor.get_data::<i32>(i as u16)? {
@@ -96,9 +135,12 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<()> 
         }
         NoData(_) => println!("Query executed, no data returned"),
     }
+    Ok(())
+}
 
+fn execute_tables<'env>(conn: &Connection<'env, AutocommitOn>, catalog_name: &str, table_name: &str) -> Result<()> {
     let stmt = Statement::with_parent(conn)?;
-    let mut stmt = stmt.tables_str("tdvt", "", "%", "")?;
+    let mut stmt = stmt.tables_str(catalog_name, "", table_name, "")?;
     let cols = stmt.num_result_cols()?;
     println!("TABLES");
     while let Some(mut cursor) = stmt.fetch()? {
@@ -111,6 +153,4 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<()> 
         println!("");
     }
     println!("");
-
-    Ok(())
 }
