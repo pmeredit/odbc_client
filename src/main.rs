@@ -82,7 +82,7 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
     match stmt.exec_direct(query)? {
         Data(mut stmt) => {
             let cols = stmt.num_result_cols()?;
-            println!("== Description");
+            //println!("== Description");
             let mut descriptions = Vec::with_capacity(cols as usize);
             for i in 1..(cols + 1) {
                 let desc = stmt.describe_col(i as u16).expect("failed to get description");
@@ -109,10 +109,6 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
                             match cursor.get_data::<ffi::SQL_TIMESTAMP_STRUCT>(i as u16)? {
                                 Some(val) => print!(" | {:?}", val),
                                 None => print!(" | NULL"),
-                            }
-                            match cursor.get_data::<&str>(i as u16)? {
-                                Some(val) => print!(" ({})", val),
-                                None => (),
                             }
                         }
                         ffi::SqlDataType::SQL_EXT_BIGINT => {
