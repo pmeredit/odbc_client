@@ -98,12 +98,21 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
                                 None => print!(" | NULL"),
                             }
                         }
-                        ffi::SqlDataType::SQL_CHAR
-                        | ffi::SqlDataType::SQL_DATE
-                        | ffi::SqlDataType::SQL_DATETIME => {
+                        ffi::SqlDataType::SQL_CHAR => {
                             match cursor.get_data::<&str>(i as u16)? {
                                 Some(val) => print!(" | {}", val),
                                 None => print!(" | NULL"),
+                            }
+                        }
+                        ffi::SqlDataType::SQL_DATE
+                        | ffi::SqlDataType::SQL_DATETIME => {
+                            match cursor.get_data::<ffi::SQL_TIMESTAMP_STRUCT>(i as u16)? {
+                                Some(val) => print!(" | {:?}", val),
+                                None => print!(" | NULL"),
+                            }
+                            match cursor.get_data::<&str>(i as u16)? {
+                                Some(val) => print!(" ({})", val),
+                                None => (),
                             }
                         }
                         ffi::SqlDataType::SQL_EXT_BIGINT => {
