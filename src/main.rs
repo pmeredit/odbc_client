@@ -86,7 +86,7 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
             let mut descriptions = Vec::with_capacity(cols as usize);
             for i in 1..(cols + 1) {
                 let desc = stmt.describe_col(i as u16).expect("failed to get description");
-                //println!("{:?}", desc);
+                println!("{:?}", desc);
                 descriptions.push(desc);
             }
             while let Some(mut cursor) = stmt.fetch()? {
@@ -113,6 +113,12 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
                         }
                         ffi::SqlDataType::SQL_EXT_BIGINT => {
                             match cursor.get_data::<i64>(i as u16)? {
+                                Some(val) => print!(" | {}", val),
+                                None => print!(" | NULL"),
+                            }
+                        }
+                        ffi::SqlDataType::SQL_INTEGER => {
+                            match cursor.get_data::<i32>(i as u16)? {
                                 Some(val) => print!(" | {}", val),
                                 None => print!(" | NULL"),
                             }
