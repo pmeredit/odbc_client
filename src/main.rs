@@ -45,7 +45,7 @@ fn main() {
 
     match connect(&opts) {
         Ok(()) => println!("Success"),
-        Err(diag) => println!("Error: {}", diag),
+        Err(diag) => println!("Error Connection: {}", diag),
     }
 }
 
@@ -70,6 +70,7 @@ fn connect(opts: &Opts) -> std::result::Result<(), DiagnosticRecord> {
             execute_tables(&conn, &r.catalog_name, &r.table_name)
         }
         SubCommand::RunQuery(r) => {
+            println!("{:?}", r.uri);
             let conn = env.connect_with_connection_string(&r.uri)?;
             execute_statement(&conn, &r.query)
         }
@@ -86,7 +87,7 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
             let mut descriptions = Vec::with_capacity(cols as usize);
             for i in 1..(cols + 1) {
                 let desc = stmt.describe_col(i as u16).expect("failed to get description");
-                //println!("{:?}", desc);
+                println!("{:?}", desc);
                 descriptions.push(desc);
             }
             while let Some(mut cursor) = stmt.fetch()? {
