@@ -1,18 +1,18 @@
 extern crate odbc;
 // Use this crate and set environmet variable RUST_LOG=odbc to see ODBC warnings
 extern crate env_logger;
+use clap::Parser;
 use odbc::*;
 use odbc_safe::AutocommitOn;
-use clap::Clap;
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = "0.0.1", author = "Patrick Meredith <pmeredit@gmail.com>")]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
     ListDSN,
     ListDrivers,
@@ -20,7 +20,7 @@ enum SubCommand {
     RunQuery(RunQuery),
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct ListTables {
     #[clap(short, long)]
     uri: String,
@@ -30,7 +30,7 @@ struct ListTables {
     table_name: String,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct RunQuery {
     #[clap(short, long)]
     uri: String,
@@ -86,27 +86,26 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
             //println!("== Description");
             let mut descriptions = Vec::with_capacity(cols as usize);
             for i in 1..(cols + 1) {
-                let desc = stmt.describe_col(i as u16).expect("failed to get description");
+                let desc = stmt
+                    .describe_col(i as u16)
+                    .expect("failed to get description");
                 println!("{:?}", desc);
                 descriptions.push(desc);
             }
             while let Some(mut cursor) = stmt.fetch()? {
                 for i in 1..(cols + 1) {
-                    match descriptions[(i-1) as usize].data_type {
+                    match descriptions[(i - 1) as usize].data_type {
                         ffi::SqlDataType::SQL_EXT_BIT => {
                             match cursor.get_data::<bool>(i as u16)? {
                                 Some(val) => print!(" | {}", val),
                                 None => print!(" | NULL"),
                             }
                         }
-                        ffi::SqlDataType::SQL_CHAR => {
-                            match cursor.get_data::<&str>(i as u16)? {
-                                Some(val) => print!(" | {}", val),
-                                None => print!(" | NULL"),
-                            }
-                        }
-                        ffi::SqlDataType::SQL_DATE
-                        | ffi::SqlDataType::SQL_DATETIME => {
+                        ffi::SqlDataType::SQL_CHAR => match cursor.get_data::<&str>(i as u16)? {
+                            Some(val) => print!(" | {}", val),
+                            None => print!(" | NULL"),
+                        },
+                        ffi::SqlDataType::SQL_DATE | ffi::SqlDataType::SQL_DATETIME => {
                             match cursor.get_data::<ffi::SQL_TIMESTAMP_STRUCT>(i as u16)? {
                                 Some(val) => print!(" | {:?}", val),
                                 None => print!(" | NULL"),
@@ -118,12 +117,10 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
                                 None => print!(" | NULL"),
                             }
                         }
-                        ffi::SqlDataType::SQL_DOUBLE => {
-                            match cursor.get_data::<f64>(i as u16)? {
-                                Some(val) => print!(" | {}", val),
-                                None => print!(" | NULL"),
-                            }
-                        }
+                        ffi::SqlDataType::SQL_DOUBLE => match cursor.get_data::<f64>(i as u16)? {
+                            Some(val) => print!(" | {}", val),
+                            None => print!(" | NULL"),
+                        },
                         _ => {
                             print!("| UNKNOWN TYPE");
                         }
@@ -137,7 +134,11 @@ fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>, query: &str) -
     Ok(())
 }
 
-fn execute_tables<'env>(conn: &Connection<'env, AutocommitOn>, catalog_name: &str, table_name: &str) -> Result<()> {
+fn execute_tables<'env>(
+    conn: &Connection<'env, AutocommitOn>,
+    catalog_name: &str,
+    table_name: &str,
+) -> Result<()> {
     let stmt = Statement::with_parent(conn)?;
     let mut stmt = stmt.tables_str(catalog_name, "", table_name, "")?;
     let cols = stmt.num_result_cols()?;
